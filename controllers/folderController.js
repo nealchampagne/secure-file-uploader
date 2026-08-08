@@ -50,8 +50,6 @@ const createFolder = async (req, res) => {
       }
     });
 
-    console.log(`Created folder ${folder.id} for user ${userId}`);
-
     res.status(201).json({
       id: folder.id,
       name: folder.name,
@@ -66,19 +64,24 @@ const createFolder = async (req, res) => {
 
 const renderFolderView = async (folderId, userId, res, options = {}) => {
   try {
+    const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+    if (!folder) {
+      return res.status(404).send('Folder not found');
+    }
+    if (folder.ownerId !== userId) {
+      return res.status(403).send('Forbidden');
+    }
+
     const allUserFolders = await prisma.folder.findMany({
       where: { ownerId: userId },
       select: { id: true, name: true, parentId: true }
     });
 
     const folderPaths = buildFolderPaths(allUserFolders);
-
-    console.log('Rendering folder view for:', folderId, 'user:', userId);
     const viewData = await getFolderView(folderId, userId);
-    console.log('Resolved viewData:', viewData);
     const isRoot = options.includeIsRoot ? !viewData.parentId : undefined;
 
-    res.render("folder", {
+    return res.render("folder", {
       folderId: viewData.folderId,
       ...viewData,
       folderPaths,
@@ -86,15 +89,30 @@ const renderFolderView = async (folderId, userId, res, options = {}) => {
       ...(isRoot !== undefined && { isRoot })
     });
   } catch (err) {
-    res.status(404).send(err.message);
+    console.error('renderFolderView failed:', err);
+    return res.status(500).send('Internal server error');
   }
 };
 
 const getFolderContents = async (req, res) => {
+  if (!req.session.user) {
+    return res.redirect('/');
+  }
+
   const folderId = req.params.id;
   const userId = req.session.user.id;
 
   try {
+    const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+
+    if (!folder) {
+      return res.status(404).send('Folder not found');
+    }
+
+    if (folder.ownerId !== userId) {
+      return res.status(403).send('Forbidden');
+    }
+
     await renderFolderView(folderId, userId, res);
   } catch (err) {
     console.error('renderFolderView failed:', err);
@@ -103,10 +121,20 @@ const getFolderContents = async (req, res) => {
 };
 
 const getDashboard = async (req, res) => {
+  if (!req.session.user) {
+    return res.redirect('/');
+  }
   const userId = req.session.user.id;
   const rootFolderId = req.session.user.rootFolderId;
 
-  if (!rootFolderId) return res.status(404).send("Root folder not found");
+  if (!rootFolderId) {
+    const fallbackRootFolder = await prisma.folder.findFirst({
+      where: { ownerId: userId, parentId: null }
+    });
+
+    if (!fallbackRootFolder) return res.status(404).send("Root folder not found");
+    return renderFolderView(fallbackRootFolder.id, userId, res, { includeIsRoot: true });
+  }
 
   await renderFolderView(rootFolderId, userId, res, { includeIsRoot: true });
 };
@@ -168,8 +196,6 @@ const isDescendant = (folders, sourceId, targetId) => {
 const moveItem = async (req, res) => {
   const { itemId, itemType, destinationId } = req.body;
   const userId = req.session.user.id;
-
-  console.log('Move item request:', { itemId, itemType, destinationId, userId });
 
   if (!itemId || !itemType || destinationId === undefined) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -274,7 +300,6 @@ const deleteFilesFromFolders = async (folderIds) => {
     }
   }
 };
-
 
 const deleteItem = async (req, res) => {
   const itemType = req.params.type;

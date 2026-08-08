@@ -5,10 +5,12 @@
   "main": "app.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon app.js",
+    "dev": "nodemon server.js",
     "build": "npm install && prisma generate && prisma migrate deploy",
     "postinstall": "prisma generate",
-    "start": "node app.js"
+    "start": "node server.js",
+    "test": "jest --runInBand --detectOpenHandles",
+    "test:coverage": "jest --coverage --runInBand --detectOpenHandles"
   },
   "repository": {
     "type": "git",

@@ -6,8 +6,6 @@ const createFolder = async (parentId = null) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ parentId })
     });
-    console.log('Response status:', res.status);
-    console.log('Content-Type:', res.headers.get('content-type'));
 
     if (!res.ok) {
       throw new Error(`Server error: ${res.status} ${text}`);
@@ -45,8 +43,6 @@ const createFolder = async (parentId = null) => {
               tabindex="0">⋮</button>
     `;
 
-
-    console.log('newItem HTML:', newItem.innerHTML);
 
     folderList.appendChild(newItem);
 

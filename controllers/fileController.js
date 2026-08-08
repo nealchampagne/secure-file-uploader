@@ -17,10 +17,12 @@ const viewFileDetails = async (req, res) => {
       }
     });
 
-    if (!file || file.ownerId !== userId) {
-      return res.status(404).send("File not found or access denied");
-    }
-
+    if (!file) {
+      return res.status(404).send("File not found");
+    } else if (file.ownerId !== userId) {
+      return res.status(403).send("Access denied");
+    };
+    console.log('Here I go rendering again...')
     res.render('fileDetails', { file });
   } catch (err) {
     console.error('Error fetching file details:', err);

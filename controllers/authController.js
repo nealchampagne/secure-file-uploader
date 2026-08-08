@@ -128,8 +128,6 @@ const postNewUser = async (req, res) => {
       rootFolderId: rootFolder.id,
     };
 
-    console.log(`Created root folder ${rootFolder.id} for user ${newUser.email}`);
-
     req.session.save(() => {
       res.redirect('/folders');
     });
